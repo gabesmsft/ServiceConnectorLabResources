@@ -34,12 +34,12 @@
     "location": {
       "type": "string",
       "defaultValue": "East US",
-	  "allowedValues": [
+      "allowedValues": [
         "East US",
         "West US 2",
         "West Europe",
-        "North Europe",
-	  ],
+        "North Europe"
+      ],
       "metadata": {
         "description": "Location for all resources."
       }
