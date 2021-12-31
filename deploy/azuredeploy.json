@@ -1,0 +1,335 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "phpmysqlscapp1": {
+      "type": "string",
+      "defaultValue": "[concat('phpmysqlscapp1-', uniqueString(resourceGroup().id))]"
+    },
+    "phpmysqlscapp2": {
+      "type": "string",
+      "defaultValue": "[concat('phpmysqlscapp2-', uniqueString(resourceGroup().id))]"
+    },
+    "dotnetkvapp1": {
+      "type": "string",
+      "defaultValue": "[concat('dotnetkvapp1-', uniqueString(resourceGroup().id))]"
+    },
+    "MySQLHost": {
+      "type": "string",
+      "defaultValue": "[concat('mysqlserver-', uniqueString(resourceGroup().id))]"
+    },
+    "MySQLUserName": {
+      "type": "string",
+      "minLength": 1,
+      "metadata": {
+        "description": "MySQL administrator login name"
+      }
+    },
+    "MySQLPassword": {
+      "type": "secureString",
+      "metadata": {
+        "description": "MySQL Database administrator password. The password must be at least 8 characters and at most 128 characters in length."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for all resources."
+      }
+    },
+    "sku": {
+      "type": "string",
+      "defaultValue": "B1",
+      "metadata": {
+        "description": "The SKU of App Service Plan."
+      }
+    },
+    "managedIdentityName": {
+      "type": "string",
+      "defaultValue": "ServiceConnectorUserAssignedId"
+    },
+    "keyVaultName": {
+      "type": "string",
+      "defaultValue": "[concat('keyvault-', uniqueString(resourceGroup().id))]"
+    },
+    "springCloudInstanceName": {
+      "type": "string",
+      "defaultValue": "[concat('springcloudsc-', uniqueString(resourceGroup().id))]",
+      "metadata": {
+        "description": "The instance name of the Azure Spring Cloud resource"
+      }
+    }
+  },
+  "variables": {
+    "appServicePlanName": "[concat('Plan-', uniqueString(resourceGroup().id))]",
+    "dotnetKeyVaultGitHubRepoUrl": "https://github.com/gabesmsft/KeyVaultWebAppDotnet",
+    "phpMySQLGitHubRepoUrl": "https://github.com/gabesmsft/PHPMySQLWebApp"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2020-06-01",
+      "name": "[variables('appServicePlanName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('sku')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2020-06-01",
+      "name": "[parameters('phpmysqlscapp1')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+      ],
+      "properties": {
+        "siteConfig": {
+          "metadata": [
+            {
+              "name": "CURRENT_STACK",
+              "value": "php"
+            }
+          ],
+          "phpVersion": "7.4"
+        },
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+      },
+      "resources": [
+        {
+          "type": "sourcecontrols",
+          "apiVersion": "2020-06-01",
+          "name": "web",
+          "location": "[parameters('location')]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('phpmysqlscapp1'))]"
+          ],
+          "properties": {
+            "repoUrl": "[variables('phpMySQLGitHubRepoUrl')]",
+            "branch": "master",
+            "isManualIntegration": true
+          }
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2020-06-01",
+      "name": "[parameters('phpmysqlscapp2')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "[resourceId('Microsoft.Web/sites/sourcecontrols', parameters('phpmysqlscapp1'), 'web')]"
+      ],
+      "properties": {
+        "siteConfig": {
+          "metadata": [
+            {
+              "name": "CURRENT_STACK",
+              "value": "php"
+            }
+          ],
+          "phpVersion": "7.4"
+        },
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+      },
+      "resources": [
+        {
+          "type": "sourcecontrols",
+          "apiVersion": "2020-06-01",
+          "name": "web",
+          "location": "[parameters('location')]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('phpmysqlscapp2'))]"
+          ],
+          "properties": {
+            "repoUrl": "[variables('phpMySQLGitHubRepoUrl')]",
+            "branch": "master",
+            "isManualIntegration": true
+          }
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2020-06-01",
+      "name": "[parameters('dotnetkvapp1')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "[resourceId('Microsoft.Web/sites/sourcecontrols', parameters('phpmysqlscapp2'), 'web')]"
+      ],
+      "properties": {
+        "siteConfig": {
+          "metadata": [
+            {
+              "name": "CURRENT_STACK",
+              "value": "dotnet"
+            }
+          ],
+          "netFrameworkVersion": "v4.0"
+        },
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]"
+      },
+      "resources": [
+        {
+          "type": "sourcecontrols",
+          "apiVersion": "2020-06-01",
+          "name": "web",
+          "location": "[parameters('location')]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', parameters('dotnetkvapp1'))]"
+          ],
+          "properties": {
+            "repoUrl": "[variables('dotnetKeyVaultGitHubRepoUrl')]",
+            "branch": "master",
+            "isManualIntegration": true
+          }
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.DBForMySQL/servers",
+      "apiVersion": "2017-12-01",
+      "name": "[parameters('MySQLHost')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "B_Gen5_1",
+        "tier": "Basic",
+        "capacity": "1",
+        "family": "Gen5"
+      },
+      "properties": {
+        "createMode": "Default",
+        "version": "5.7",
+        "administratorLogin": "[parameters('MySQLUserName')]",
+        "administratorLoginPassword": "[parameters('MySQLPassword')]",
+        "storageProfile": {
+          "storageMB": "5120",
+          "backupRetentionDays": 7,
+          "geoRedundantBackup": "Disabled"
+        },
+        "sslEnforcement": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.DBForMySQL/servers/firewallRules",
+      "apiVersion": "2017-12-01",
+      "name": "[concat(parameters('MySQLHost'), '/', 'AllowAzureIPs')]",
+      "properties": {
+        "startIpAddress": "0.0.0.0",
+        "endIpAddress": "0.0.0.0"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBForMySQL/servers/databases', parameters('MySQLHost'), 'fakedb1')]",
+        "[resourceId('Microsoft.DBForMySQL/servers', parameters('MySQLHost'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.DBForMySQL/servers/databases",
+      "apiVersion": "2017-12-01",
+      "name": "[concat(parameters('MySQLHost'), '/', 'fakedb1')]",
+      "properties": {
+        "charset": "utf8",
+        "collation": "utf8_general_ci"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.DBForMySQL/servers', parameters('MySQLHost'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2018-11-30",
+      "name": "[parameters('managedIdentityName')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[parameters('keyVaultName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "enableSoftDelete": false,
+        "tenantId": "[subscription().tenantId]",
+        "accessPolicies": [],
+        "sku": {
+          "name": "Standard",
+          "family": "A"
+        },
+        "networkAcls": {
+          "defaultAction": "Allow",
+          "bypass": "AzureServices"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(parameters('keyVaultName'), '/', 'secret1')]",
+      "properties": {
+        "value": "maple donuts"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(parameters('keyVaultName'), '/', 'secret2')]",
+      "properties": {
+        "value": "bran muffin"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', parameters('keyVaultName'), 'secret1')]"
+      ]
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2021-04-01-preview",
+      "name": "[concat(parameters('keyVaultName'), '/', 'secret3')]",
+      "properties": {
+        "value": "corn scones"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.KeyVault/vaults/secrets', parameters('keyVaultName'), 'secret2')]"
+      ]
+    },
+    {
+      "apiVersion": "2020-07-01",
+      "name": "[parameters('springCloudInstanceName')]",
+      "location": "[parameters('location')]",
+      "type": "Microsoft.AppPlatform/Spring",
+      "sku": {
+        "name": "B0",
+        "tier": "Basic"
+      }
+    },
+    {
+      "apiVersion": "2020-07-01",
+      "name": "[concat(parameters('springCloudInstanceName'), '/', 'app1')]",
+      "location": "[parameters('location')]",
+      "type": "Microsoft.AppPlatform/Spring/apps",
+      "dependsOn": [
+        "[resourceId('Microsoft.AppPlatform/Spring', parameters('springCloudInstanceName'))]"
+      ],
+      "resources": [
+        {
+          "type": "deployments",
+          "apiVersion": "2020-07-01",
+          "name": "default",
+          "dependsOn": [
+            "app1"
+          ],
+          "properties": {
+            "source": {
+              "relativePath": "<default>",
+              "type": "Jar"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
