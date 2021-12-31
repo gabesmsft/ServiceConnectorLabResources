@@ -33,7 +33,14 @@
     },
     "location": {
       "type": "string",
-      "defaultValue": "[resourceGroup().location]",
+      "defaultValue": "East US",
+	  "allowedValues": [
+		"East US",
+		"West US 2",
+		"West Central US",
+		"West Europe",
+		"North Europe",
+    ]
       "metadata": {
         "description": "Location for all resources."
       }
