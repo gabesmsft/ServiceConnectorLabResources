@@ -35,11 +35,11 @@
       "type": "string",
       "defaultValue": "East US",
 	  "allowedValues": [
-		"East US",
-		"West US 2",
-		"West Europe",
-		"North Europe",
-    ]
+        "East US",
+        "West US 2",
+        "West Europe",
+        "North Europe",
+	  ],
       "metadata": {
         "description": "Location for all resources."
       }
